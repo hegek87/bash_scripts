@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Given a path name, will construct the path by successive
+# calls to mkdir, then it will enter the path and create 
+# the following
+#		1. compile - a file to compile the program
+#		2. makefile
+#		3. .c and .h file based on the FILE_NAME
+#		4. objects directory
+#
+# DEPENDENCIES specifies any files that must be compiled along with 
+# our file.
+PROJ_PATH=$1
+FILE_NAME=$2
+DEPENDENCIES=$3
+
+# parse the path
+for i in `echo $PROJ_PATH | tr '/' ' '`
+do
+	mkdir $i
+	cd $i
+done
+
+mkdir objects
+touch $FILE_NAME".c"
+touch $FILE_NAME".h"
+
+echo "#include <stdio.h>
+int main(void){
+	printf(\"HI\n\");
+	return 0;
+}" > $FILE_NAME".c"
+
+UC=`echo $FILE_NAME | tr '[:lower:]' '[:upper:]'`
+
+echo "#ifndef $UC""_H""
+#define $UC""_H""
+#endif" > $FILE_NAME".h"
+
+
