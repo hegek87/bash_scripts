@@ -9,7 +9,7 @@
 #		4. objects directory
 #
 # DEPENDENCIES specifies any files that must be compiled along with 
-# our file.
+# our file, multiple dependency paths should be seperated by commas
 PROJ_PATH=$1
 FILE_NAME=$2
 DEPENDENCIES=$3
@@ -33,8 +33,52 @@ int main(void){
 
 UC=`echo $FILE_NAME | tr '[:lower:]' '[:upper:]'`
 
+DEP_LIST=`echo $DEPENDENCIES | tr ',' ' '`
+
 echo "#ifndef $UC""_H""
-#define $UC""_H""
-#endif" > $FILE_NAME".h"
+#define $UC""_H"" " > $FILE_NAME".h"
+if ! [[ -z DEPENDENCIES ]]; then
+	#include dependencies
+	for i in $DEP_LIST
+	do
+		echo "#include \"" $i".h\"" >> $FILE_NAME".h"
+	done
+fi
+echo "#endif" >> $FILE_NAME".h"
+
+touch compile makefile
+chmod u+x compile
+
+echo "#!/bin/bash
+
+if [[ \"$1\" = \"r\" ]]; then
+	make
+fi
+
+if [[ \"$1\" = \"m\" ]]; then
+	make
+	valgrind --tool=memcheck --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes ./objects/graph_list
+fi
+
+if [[ \"$1\" = \"d\" ]]; then
+	gdb ./objects/graph_list
+else
+	./objects/graph_list
+fi" > compile
+
+echo "all:
+	gcc -c -g -Wall $FILE_NAME\".c\"" > makefile
+if ! [[ -z DEPENDENCIES ]]; then
+	for i in $DEP_LIST
+	do
+		echo "	gcc -c -g -Wall " $i".c" >> makefile
+	done
+fi
+
+echo "	mv *.o ./objects" >> makefile
+
+OBJ_DEP_LIST=`echo $DEP_LIST | tr ' ' '.o '`
+echo "	gcc -g -Wall -o ./objects/"$FILE_NAME " " $OBJ_DEP_LIST >> makefile
+
 
 
