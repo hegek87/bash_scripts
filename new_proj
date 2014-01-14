@@ -10,11 +10,17 @@
 #
 # DEPENDENCIES specifies any files that must be compiled along with 
 # our file, multiple dependency paths should be seperated by commas
+
 PROJ_PATH=$1
 FILE_NAME=$2
 DEPENDENCIES=$3
+PATH_START=$4
 
-# parse the path
+if ! [[ -z $PATH_START ]]; then
+	cd $PATH_START
+fi
+
+# parse the path and create the directory structure
 for i in `echo $PROJ_PATH | tr '/' ' '`
 do
 	mkdir $i
@@ -22,15 +28,17 @@ do
 done
 
 mkdir objects
-touch $FILE_NAME".c"
-touch $FILE_NAME".h"
 
+# create .c file
+touch $FILE_NAME".c"
 echo "#include <stdio.h>
 int main(void){
 	printf(\"HI\n\");
 	return 0;
 }" > $FILE_NAME".c"
 
+# create header
+touch $FILE_NAME".h"
 UC=`echo $FILE_NAME | tr '[:lower:]' '[:upper:]'`
 
 DEP_LIST=`echo $DEPENDENCIES | tr ',' ' '`
@@ -46,28 +54,33 @@ if ! [[ -z DEPENDENCIES ]]; then
 fi
 echo "#endif" >> $FILE_NAME".h"
 
-touch compile makefile
+
+# create compile executable
+touch compile
 chmod u+x compile
 
 echo "#!/bin/bash
 
-if [[ \"$1\" = \"r\" ]]; then
+if [[ \"\$1\" = \"r\" ]]; then
 	make
 fi
 
-if [[ \"$1\" = \"m\" ]]; then
+if [[ \"\$1\" = \"m\" ]]; then
 	make
-	valgrind --tool=memcheck --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes ./objects/graph_list
+	valgrind --tool=memcheck --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes ./objects/"$FILE_NAME"
 fi
 
-if [[ \"$1\" = \"d\" ]]; then
-	gdb ./objects/graph_list
+if [[ \"\$1\" = \"d\" ]]; then
+	gdb ./objects/"$FILE_NAME"
 else
-	./objects/graph_list
+	./objects/"$FILE_NAME"
 fi" > compile
 
+# create makefile
+touch makefile
+
 echo "all:
-	gcc -c -g -Wall $FILE_NAME\".c\"" > makefile
+	gcc -c -g -Wall "$FILE_NAME".c" > makefile
 if ! [[ -z DEPENDENCIES ]]; then
 	for i in $DEP_LIST
 	do
@@ -75,10 +88,14 @@ if ! [[ -z DEPENDENCIES ]]; then
 	done
 fi
 
+# link files
+OBJ_LIST=""
+for i in $DEP_LIST
+do
+	OBJ_LIST+=$(basename $i)".o "
+done
+echo "	gcc -g -Wall -o ./objects/"$FILE_NAME" "$FILE_NAME".o "$OBJ_LIST >> makefile
+
 echo "	mv *.o ./objects" >> makefile
-
-OBJ_DEP_LIST=`echo $DEP_LIST | tr ' ' '.o '`
-echo "	gcc -g -Wall -o ./objects/"$FILE_NAME " " $OBJ_DEP_LIST >> makefile
-
 
 
